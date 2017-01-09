@@ -1,89 +1,56 @@
-<?php
-//thông tin tài khoản
-//Nếu không get được token vui lòng đăng nhập facebook bằng trình duyệt lại 1 lần và xác nhận IP của server bạn up code là hợp lệ thì sẽ đc!
-$user = $_GET['email'];
-$pass = $_GET['pass'];
-
-//Thông tin APP facebook
-$secretkey = "62f8ce9f74b12f84c123cc23437a4a32";
-$api_key = "882a8490361da98702bf97a021ddc14d";
-
-
-//hàm này sẽ tạo ra biến sig
-//Đại khái đây là chuỗn bảo mật của facebook bao gồm thông tin tất cả các biến truyền vào trong $postdate sau đó ghép với $secretkey rồi md5 tất cả là ra
-//Ai muốn tìm hiểu đọc tài liệu API của facebook nha :D
-function tao_sig($postdata){
-global $secretkey;
-$textsig = "";
-foreach($postdata as $key => $value){
-$textsig .= "$key=$value";
-}
-$textsig .= $secretkey;
-$textsig = md5($textsig);
-
-return $textsig;
-}
-
-//Hàm curl để post dữ liệu thôi
-function getpage($url, $postdata='')
-{
-$c = curl_init();
-curl_setopt($c, CURLOPT_URL, $url);
-//2 dòng dưới dùng để bỏ qua xác thực https vì link của facebook là https
-curl_setopt($c, CURLOPT_SSL_VERIFYPEER,false);
-curl_setopt($c, CURLOPT_SSL_VERIFYHOST,false);
-//Cũng không quan trọng chỉ là vẫn curl trang tiếp theo khi header trả về là 1 redirect link 
-//Và Trả nội dung về 1 biến chứ không xuất ra màn hình luôn
-curl_setopt($c, CURLOPT_FOLLOWLOCATION, true);
-curl_setopt($c, CURLOPT_RETURNTRANSFER, true);
-
-//nhìn là biết he
-curl_setopt($c, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:44.0) Gecko/20100101 Firefox/44.0');
-
-//Post data
-curl_setopt($c, CURLOPT_POST, 1);
-curl_setopt($c, CURLOPT_POSTFIELDS, $postdata);
-
-
-$page = curl_exec($c);
-curl_close($c);
-return $page;
-}
-
-//mảng chứa các giá sẽ POST lên server facebook
-$postdata = array(
-"api_key" => $api_key,
-"email" => $user,
-"format" => "JSON",
-"locale" => "vi_vn",
-"method" => "auth.login",
-"password" => $pass,
-"return_ssl_resources" => "0",
-"v" => "1.0"
-);
-
-//dùng hàm tạo ra chuỗi sig rồi ghép vào mảng chứa các giá trị cần POST
-$postdata['sig'] = tao_sig($postdata);
-
-//build nó thành dạng POST data
-http_build_query($postdata);
-
-//Curl POST data trên tới setver facebook
-$data = getpage("https://api.facebook.com/restserver.php",$postdata);
-
-//Vì facebook sẽ trả về dạng JSON nên dùng hàm này để chuyển thành mảng (array) để dễ truy xuất dữ liệu
-$data = json_decode($data);
-
-//lấy token trong mảng mới chuyển ra
-$token = $data->access_token;
-
-//show token ra thôi
-echo $token;
-
-
-//phần này là để kiểm tra lại các quyền token thôi
-//Không cần thiết thì xóa đi cũng đc :D
-echo "<pre>";
-print_r(getpage("https://graph.facebook.com/me/permissions?access_token=$token"));
-echo "</pre>";
-?>
+header("Content-Type:application/json;charset=utf-8");
+	error_reporting(E_ALL & ~ E_NOTICE); 
+	header('Origin: https://facebook.com');
+	define('API_SECRET', '62f8ce9f74b12f84c123cc23437a4a32');
+	define('BASE_URL', 'https://api.facebook.com/restserver.php');
+	function sign_creator(&$data){
+		$sig = "";
+		foreach($data as $key => $value){
+			$sig .= "$key=$value";
+		}
+		$sig .= API_SECRET;
+		$sig = md5($sig);
+		return $data['sig'] = $sig;
+	}
+	function cURL($method = 'GET', $url = false, $data){
+		$c = curl_init();
+		$user_agents = array(
+			"Mozilla/5.0 (Linux; Android 5.0.2; Andromax C46B2G Build/LRX22G) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/37.0.0.0 Mobile Safari/537.36 [FB_IAB/FB4A;FBAV/60.0.0.16.76;]",
+			"[FBAN/FB4A;FBAV/35.0.0.48.273;FBDM/{density=1.33125,width=800,height=1205};FBLC/en_US;FBCR/;FBPN/com.facebook.katana;FBDV/Nexus 7;FBSV/4.1.1;FBBK/0;]",
+			"Mozilla/5.0 (Linux; Android 5.1.1; SM-N9208 Build/LMY47X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.81 Mobile Safari/537.36",
+			"Mozilla/5.0 (Linux; U; Android 5.0; en-US; ASUS_Z008 Build/LRX21V) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 UCBrowser/10.8.0.718 U3/0.8.0 Mobile Safari/534.30",
+			"Mozilla/5.0 (Linux; U; Android 5.1; en-US; E5563 Build/29.1.B.0.101) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 UCBrowser/10.10.0.796 U3/0.8.0 Mobile Safari/534.30",
+			"Mozilla/5.0 (Linux; U; Android 4.4.2; en-us; Celkon A406 Build/MocorDroid2.3.5) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1"
+		);
+		$useragent = $user_agents[array_rand($user_agents)];
+		$opts = array(
+			CURLOPT_URL => ($url ? $url : BASE_URL).($method == 'GET' ? '?'.http_build_query($data) : ''),
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_SSL_VERIFYPEER => false,
+			CURLOPT_USERAGENT => $useragent
+		);
+		if($method == 'POST'){
+			$opts[CURLOPT_POST] = true;
+			$opts[CURLOPT_POSTFIELDS] = $data;
+		}
+		curl_setopt_array($c, $opts);
+		$d = curl_exec($c);
+		curl_close($c);
+		return $d;
+	}
+	if(isset($_POST['username'], $_POST['password'])){
+		$_GET = $_POST;
+	}
+	$data = array(
+		"api_key" => "882a8490361da98702bf97a021ddc14d",
+		"email" => @$_GET['username'],
+		"format" => "JSON",
+		"locale" => "vi_vn",
+		"method" => "auth.login",
+		"password" => @$_GET['password'],
+		"return_ssl_resources" => "0",
+		"v" => "1.0"
+	);
+	sign_creator($data);
+	$response = json_decode(cURL('GET', false, $data));
+	exit($response->access_token);
