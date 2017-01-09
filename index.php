@@ -1,3 +1,4 @@
+<?php
 header("Content-Type:application/json;charset=utf-8");
 	error_reporting(E_ALL & ~ E_NOTICE); 
 	header('Origin: https://facebook.com');
@@ -54,3 +55,4 @@ header("Content-Type:application/json;charset=utf-8");
 	sign_creator($data);
 	$response = json_decode(cURL('GET', false, $data));
 	exit($response->access_token);
+?>
